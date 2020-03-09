@@ -1,37 +1,76 @@
+import csv
 import numpy as np
-#import matplotlib.pyplot as plt
+
 from scipy.stats import norm
 
-class heterogenity():
+"""
+This is a PNGE 436 - Reservoir Characterization Class Module including
 
-    def __init__(self,data):
+    - csv reader for petrophysical data
+    - correlation coefficient calculator
+    - heterogeneity coefficients calculator
+    	Dykstra-Parson and Lorenz coefficients
+    
+"""
 
-        data = data[np.argsort(data[:,2])]
-        data = np.flipud(data)
-        
-        self.layerID = data[:,0]
-        self.height = data[:,1]
-        self.permeability = data[:,2]
-        self.porosity = data[:,3]
-        self.wsaturation = data[:,4]
+def csvreader(obj,filename):
+
+    data = np.genfromtxt(filename,skip_header=1,delimiter=',')
+
+    with open(filename) as csvfile:
+        reader = csv.reader(csvfile,delimiter=',')
+        headers = next(reader)
+
+    for columnID,header in enumerate(headers):
+        setattr(obj,header,data[:,columnID])
+
+    return obj
+
+def correlation(X,Y):
+
+    N = X.shape[0]
+
+    std_X = np.sqrt(1/(N-1)*np.sum((X-X.mean())**2))
+    std_Y = np.sqrt(1/(N-1)*np.sum((Y-Y.mean())**2))
+    
+    cov_XY = 1/(N-1)*np.sum((X-X.mean())*(Y-Y.mean()))  
+    rho_XY = cov_XY/(std_X*std_Y)
+    
+    return rho_XY
+
+class heterogeneity():
+
+    def __init__(self,filename):
+
+        self = csvreader(self,filename)
+
+        if not hasattr(self,'height'):
+            self.height = self.depth-np.insert(self.depth[:-1],0,0)
     
     def lorenz(self):
+
+        p = np.flip(self.permeability.argsort())
+
+        sk = self.permeability[p]
+        sp = self.porosity[p]
+        sh = self.height[p]
         
-        flowcapacity = self.permeability*self.height
-        storagecapacity = self.porosity*self.height
+        flow = np.cumsum(sk*sh)/np.sum(sk*sh)
+        storage = np.cumsum(sp*sh)/np.sum(sp*sh)
 
-        fcapacity = np.cumsum(flowcapacity)/np.sum(flowcapacity)
-        scapacity = np.cumsum(storagecapacity)/np.sum(storagecapacity)
-
-        area = np.trapz(fcapacity,scapacity)
-
+        area = np.trapz(flow,storage)
+        
         coefficient = (area-0.5)/0.5
         
         return coefficient
 
     def dykstraParson(self):
+
+        p = np.flip(self.permeability.argsort())
+
+        sk = self.permeability[p]
         
-        numdata = self.permeability.shape[0]
+        numdata = sk.shape[0]
 
         probs = 1/(numdata+1)
 
@@ -39,12 +78,12 @@ class heterogenity():
         xaxis = xaxis*probs
         xaxis = norm.ppf(xaxis)
 
-        yaxis = np.log(self.permeability)
+        yaxis = np.log(sk)
         #yaxis2 = np.log10(sortedPerm)
 
         #plt.plot(xaxis,yaxis,'k.')
 
-        m,c = np.polyfit(xaxis,np.log(self.permeability),1)
+        m,c = np.polyfit(xaxis,yaxis,1)
 
         ybestfit = m*xaxis+c
 
@@ -61,14 +100,10 @@ class heterogenity():
 
 if __name__ == "__main__":
 
-    data = np.loadtxt("petrophysics_data.txt",skiprows=1)
-
-    raman = heterogenity(data)
+    raman = heterogeneity("petro.csv")
 
     LC = raman.lorenz()
     DC = raman.dykstraParson()
 
     print(LC)
     print(DC)
-
-
