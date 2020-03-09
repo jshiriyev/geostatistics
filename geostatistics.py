@@ -38,6 +38,29 @@ def correlation(X,Y):
     
     return rho_XY
 
+def ranking(X):
+    
+    rank = np.empty_like(X)
+    
+    rank[X.argsort()] = np.arange(len(X))
+
+    return rank
+
+def bootstrap(X,Nrealization):
+
+    """
+    X should be an array with one dimension,
+    The size of X defines number of rows, and
+    Nrealization specifies number of columns of an array
+    created for bootstrap analyzes
+    """
+    
+    N = X.size
+    
+    idx = np.random.randint(0,N,(N,Nrealization))
+    
+    return np.mean(X[idx],axis=0)
+
 class heterogeneity():
 
     def __init__(self,filename):
