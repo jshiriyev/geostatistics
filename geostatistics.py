@@ -100,7 +100,7 @@ class heterogeneity():
 
 if __name__ == "__main__":
 
-    raman = heterogeneity("petro.csv")
+    raman = heterogeneity("petrophysics.csv")
 
     LC = raman.lorenz()
     DC = raman.dykstraParson()
