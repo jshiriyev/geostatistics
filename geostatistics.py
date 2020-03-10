@@ -59,7 +59,7 @@ def bootstrap(X,Nrealization):
     
     idx = np.random.randint(0,N,(N,Nrealization))
     
-    return np.mean(X[idx],axis=0)
+    return idx
 
 class heterogeneity():
 
