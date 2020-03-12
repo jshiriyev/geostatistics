@@ -28,7 +28,12 @@ def csvreader(obj,filename):
 
     return obj
 
-def findslope(X,Y,flag):
+def findslope(X,Y,*args):
+    
+    if not args:
+        flag = False
+    else:
+        flag = args[0]
 
     N = X.size
 
@@ -44,10 +49,10 @@ def findslope(X,Y,flag):
     m = np.linalg.solve(A,b)
     
     if flag:
-	yapp = np.dot(G,m)	# approximated y
-	return m, yapp
+        yapp = np.dot(G,m)	# approximated y
+        return m, yapp.flatten()
     else:
-	return m
+        return m
 
 def correlation(X,Y):
 
