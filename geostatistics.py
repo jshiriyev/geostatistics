@@ -28,6 +28,27 @@ def csvreader(obj,filename):
 
     return obj
 
+def findslope(X,Y,flag):
+
+    N = X.size
+
+    O = np.ones((N,1))
+    X = X.reshape((-1,1))
+    Y = Y.reshape((-1,1))
+
+    G = np.concatenate((O,X),axis=1)
+
+    A = np.dot(G.transpose(),G)
+    b = np.dot(G.transpose(),Y)
+
+    m = np.linalg.solve(A,b)
+    
+    if flag:
+	yapp = np.dot(G,m)	# approximated y
+	return m, yapp
+    else:
+	return m
+
 def correlation(X,Y):
 
     N = X.shape[0]
