@@ -9,9 +9,13 @@ from scipy.stats import norm
 This is a PNGE 436 - Reservoir Characterization Class Module including
 
     - csv reader for petrophysical data
-    - correlation coefficient calculator
+
+    univariate analysis:
     - heterogeneity coefficients calculator
     	Dykstra-Parson and Lorenz coefficients
+
+    bivariate analysis:
+    - correlation coefficient calculator
     
 """
 
@@ -205,6 +209,80 @@ class heterogeneity():
         coefficient = (k50p0-k84p1)/k50p0
         
         return coefficient
+
+class directionalVariogram():
+
+    def __init__(self,
+                 filename,
+                 lagdistance=None,
+                 lagdisTol=None,
+                 lagdip=None,
+                 lagdipTol=None):
+
+        self = csvreader(self,filename)
+
+        self.X = self.west_east.reshape(-1,1)
+        self.Y = self.north_south.reshape(-1,1)
+        self.Z = self.toc.reshape(-1,1)
+
+        self.distance = np.sqrt((self.X-self.X.T)**2+(self.Y-self.Y.T)**2)
+
+        if lagdistance is None:
+            self.lagdistance = np.where(self.distance==0.,np.inf,self.distance).min()
+        else:
+            self.lagdistance = lagdistance
+
+        if lagdisTol is None:
+            self.lagdisTol = self.lagdistance/2.
+        else:
+            self.lagdisTol = lagdisTol
+
+        if lagdip is not None:
+            self.lagdip = lagdip
+
+        if lagdipTol is None:
+            self.lagdipTol = self.lagdip/2.
+        else:
+            self.lagdipTol = lagdipTol
+
+        """
+        for now I calculate self.bins, however it is not used yet
+        variogram is calculated only for lagdistance
+        """
+
+        self.bins = np.arange(self.lagdistance,self.distance.max(),self.lagdistance)
+
+        """
+        if we set x direction as east and y direction as north
+        then the following azimuth will be zero toward east and
+        will be positive in counterclockwise direction
+        """
+        
+        self.azimuth = 180.+np.degrees(np.arctan2(self.Y-self.Y.T,self.X-self.X.T))
+        self.azimuth = np.where(self.azimuth==360,0,self.azimuth)
+
+        """
+        finding indexes when lag_distance matches data spacing, disMatch
+        and when dip angle matches azimuth, azmMatch
+        for non uniform spacing most modification will be here probably.
+        """
+
+        conDis = np.logical_and(self.distance>self.lagdistance-self.lagdisTol,
+                                self.distance<self.lagdistance+self.lagdisTol)
+        
+        disMatch = np.asfortranarray(np.where(conDis)).T
+        azmMatch = np.asfortranarray(np.where(self.azimuth==self.lagdip)).T
+
+        """
+        comparing disMatch to azmMatch to find indices matching both
+        """
+
+        dtype={'names':['f{}'.format(i) for i in range(2)],'formats':2*[disMatch.dtype]}
+
+        match = np.intersect1d(disMatch.view(dtype),azmMatch.view(dtype))
+        match = match.view(disMatch.dtype).reshape(-1,2)
+
+        self.experimental = ((self.Z[match[:,0]]-self.Z[match[:,1]])**2).sum()/(2*match.shape[0])
 
 if __name__ == "__main__":
 
