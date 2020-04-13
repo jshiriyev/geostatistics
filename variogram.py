@@ -102,35 +102,30 @@ class variogram():
 
             self.experimental[i] = semivariance
 
-    def set_theoretical(dist_mat,model):
+    def set_theoretical(self):
 
-        Dmat = dist_mat
-
-        var_type = model.type
-        var_nugget = model.nugget
-        var_sill = model.sill
-        var_range = model.range
+        Dmat = self.distance
         
         var_mat = np.zeros_like(Dmat)
         
-        C0 = var_nugget
+        C0 = self.nugget
         
-        C = var_sill-var_nugget
-        a = var_range
+        C = self.sill-self.nugget
+        a = self.range
 
         hpa = Dmat/a
 
-        if var_type == 'spherical':
+        if self.type == 'spherical':
             var_mat[Dmat>0] = C0+C*(3/2*hpa[Dmat>0]-1/2*hpa[Dmat>0]**3)
             var_mat[Dmat>a] = C0+C
-        elif var_type == 'exponential':
+        elif self.type == 'exponential':
             var_mat = C0+C*(1-np.exp(-3*hpa))
-        elif var_type == 'gaussian':
+        elif self.type == 'gaussian':
             var_mat = C0+C*(1-np.exp(-3*hpa**2))
-        elif var_type == 'hole_effect':
+        elif self.type == 'hole_effect':
             var_mat = C0+C*(1-np.sin(hpa)/hpa)
             
-        return var_mat
+        self.theoretical = var_mat
 
 if __name__ == "__main__":
 
