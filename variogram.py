@@ -3,22 +3,38 @@ import numpy as np
 """
 This is a PNGE 436 - Reservoir Characterization Class Module including
 
-    - experimental variogram calculator
-    - planning to calculate the directional variogram as well
+    - variogram class:
+    - calculates experimental variograms
+    - calculates theoretical variograms
     
 """
 
 class variogram():
 
-    def __init__(self,filename,lagdistance=None,lagdisTol=None):
+    def __init__(self,data):
 
-        self = csvreader(self,filename)
+        self.x = data.X
+        self.y = data.Y
+##        self.z = data.Z
 
-        self.X = self.WE.reshape(-1,1)
-        self.Y = self.SN.reshape(-1,1)
-        self.Z = self.porosity.reshape(-1,1)
+        self.f = data.F
 
-        self.distance = np.sqrt((self.X-self.X.T)**2+(self.Y-self.Y.T)**2)
+        self.set_distance()
+
+    def set_distance(self):
+
+        x_T = np.reshape(self.x,(-1,1))
+        y_T = np.reshape(self.y,(-1,1))
+##        z_T = np.reshape(self.z,(-1,1))
+
+        self.dx = self.x-x_T
+        self.dy = self.y-y_T
+##        self.dz = self.z-z_T
+
+##        self.distance = np.sqrt(self.dx**2+self.dy**2+self.dz**2)
+        self.distance = np.sqrt(self.dx**2+self.dy**2)
+
+    def set_experimental(self,lagdistance=None,lagdisTol=None,lagdip=None,lagdipTol=None):
 
         if lagdistance is None:
             self.lagdistance = np.where(self.distance==0.,np.inf,self.distance).min()
@@ -30,37 +46,57 @@ class variogram():
         else:
             self.lagdisTol = lagdisTol
 
-        """
-        for now I calculate self.bins, however it is not used yet
-        variogram is calculated only for lagdistance
-        """
+        if lagdip is not None:
+            self.lagdip = lagdip
+
+        if lagdipTol is None:
+            self.lagdipTol = self.lagdip/2.+1e-5
+        else:
+            self.lagdipTol = lagdipTol
 
         self.bins = np.arange(self.lagdistance,self.distance.max(),self.lagdistance)
 
         """
-        finding indexes when lag_distance matches data spacing, disMatch
+        if we set x direction as east and y direction as north
+        then the following azimuth will be zero toward east and
+        will be positive in counterclockwise direction
         """
+        
+        self.azimuth = np.degrees(np.arctan2(self.dy,self.dx))+180.
+        self.azimuth = np.where(self.azimuth==360,0,self.azimuth)
 
+        """
+        finding indexes when lag_distance matches data spacing, disMatch
+        and when dip angle matches azimuth, azmMatch
+        for non uniform spacing most modification will be here probably.
+        """
+        
+        ##### what is the best way of comparing floating numbers with some tolerance???
+        
         conDis = np.logical_and(self.distance>self.lagdistance-self.lagdisTol,
                                 self.distance<self.lagdistance+self.lagdisTol)
         
+        conAzm = np.logical_and(self.azimuth>self.lagdip-self.lagdipTol,
+                                self.azimuth<self.lagdip+self.lagdipTol)
+        
         disMatch = np.asfortranarray(np.where(conDis)).T
+        azmMatch = np.asfortranarray(np.where(conAzm)).T
 
-        self.experimental = ((self.Z[disMatch[:,0]]-self.Z[disMatch[:,1]])**2).sum()/(2*disMatch.shape[0])
+        """
+        comparing disMatch to azmMatch to find indices matching both
+        """
 
-    def set_distance(self):
+        dtype={'names':['f{}'.format(i) for i in range(2)],'formats':2*[disMatch.dtype]}
 
-        x_T = np.reshape(self.x,(-1,1))
-        y_T = np.reshape(self.y,(-1,1))
-        z_T = np.reshape(self.z,(-1,1))
+        match = np.intersect1d(disMatch.view(dtype),azmMatch.view(dtype))
+        match = match.view(disMatch.dtype).reshape(-1,2)
 
-        dx = x_T-self.x
-        dy = y_T-self.y
-        dz = z_T-self.z
+        print(match[:,0])
+        print(match[:,1])
 
-        self.dist_mat = np.sqrt(dx**2+dy**2+dz**2)
+        self.experimental = ((self.f[match[:,0]]-self.f[match[:,1]])**2).sum()/(2*match.shape[0])
 
-    def models(dist_mat,model):
+    def set_theoretical(dist_mat,model):
 
         Dmat = dist_mat
 
@@ -89,87 +125,17 @@ class variogram():
             var_mat = C0+C*(1-np.sin(hpa)/hpa)
             
         return var_mat
-"""
-planning to inherit from variogram in directionalVariogram calculation
-"""
-
-class directionalVariogram():
-
-    def __init__(self,filename,lagdistance=None,lagdisTol=None,lagdip=None,lagdipTol=None):
-
-        self = csvreader(self,filename)
-
-        self.X = self.WE.reshape(-1,1)
-        self.Y = self.SN.reshape(-1,1)
-        self.Z = self.porosity.reshape(-1,1)
-
-        self.distance = np.sqrt((self.X-self.X.T)**2+(self.Y-self.Y.T)**2)
-
-        if lagdistance is None:
-            self.lagdistance = np.where(self.distance==0.,np.inf,self.distance).min()
-        else:
-            self.lagdistance = lagdistance
-
-        if lagdisTol is None:
-            self.lagdisTol = self.lagdistance/2.
-        else:
-            self.lagdisTol = lagdisTol
-
-        if lagdip is not None:
-            self.lagdip = lagdip
-
-        if lagdipTol is None:
-            self.lagdipTol = self.lagdip/2.+1e-5
-        else:
-            self.lagdipTol = lagdipTol
-
-        """
-        for now I calculate self.bins, however it is not used yet
-        variogram is calculated only for lagdistance
-        """
-
-        self.bins = np.arange(self.lagdistance,self.distance.max(),self.lagdistance)
-
-        """
-        if we set x direction as east and y direction as north
-        then the following azimuth will be zero toward east and
-        will be positive in counterclockwise direction
-        """
-        
-        self.azimuth = 180.+np.degrees(np.arctan2(self.Y-self.Y.T,self.X-self.X.T))
-        self.azimuth = np.where(self.azimuth==360,0,self.azimuth)
-
-        """
-        finding indexes when lag_distance matches data spacing, disMatch
-        and when dip angle matches azimuth, azmMatch
-        for non uniform spacing most modification will be here probably.
-        """
-
-
-        ##### what is the best way of comparing floating numbers with some tolerance???
-        
-        conDis = np.logical_and(self.distance>self.lagdistance-self.lagdisTol,
-                                self.distance<self.lagdistance+self.lagdisTol)
-        
-        conAzm = np.logical_and(self.azimuth>self.lagdip-self.lagdipTol,
-                                self.azimuth<self.lagdip+self.lagdipTol)
-        
-        disMatch = np.asfortranarray(np.where(conDis)).T
-        azmMatch = np.asfortranarray(np.where(conAzm)).T
-
-        """
-        comparing disMatch to azmMatch to find indices matching both
-        """
-
-        dtype={'names':['f{}'.format(i) for i in range(2)],'formats':2*[disMatch.dtype]}
-
-        match = np.intersect1d(disMatch.view(dtype),azmMatch.view(dtype))
-        match = match.view(disMatch.dtype).reshape(-1,2)
-
-        self.experimental = ((self.Z[match[:,0]]-self.Z[match[:,1]])**2).sum()/(2*match.shape[0])
 
 if __name__ == "__main__":
 
-    dv = directionalVariogram("variogram.csv",lagdip=0.)
+    class data: pass
 
-    print(dv.experimental)
+    data.X = np.array([0,0,0,0,10,10,10,10,20,20,20,20,30,30,30,30])
+    data.Y = np.array([0,10,20,30,0,10,20,30,0,10,20,30,0,10,20,30])
+    data.Z = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
+
+    data.F = np.array([10,20,24,32,12,17,20,28,9,10,16,12,8,7,12,18])
+
+    var = variogram(data)
+    var.set_experimental(lagdistance=20*np.sqrt(2),lagdisTol=2,lagdip=135,lagdipTol=45)
+    print(var.experimental)
