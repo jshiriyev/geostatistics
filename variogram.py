@@ -15,7 +15,7 @@ class variogram():
 
         self.x = data.X
         self.y = data.Y
-##        self.z = data.Z
+        self.z = data.Z
 
         self.f = data.F
 
@@ -25,36 +25,41 @@ class variogram():
 
         x_T = np.reshape(self.x,(-1,1))
         y_T = np.reshape(self.y,(-1,1))
-##        z_T = np.reshape(self.z,(-1,1))
+        z_T = np.reshape(self.z,(-1,1))
 
         self.dx = self.x-x_T
         self.dy = self.y-y_T
-##        self.dz = self.z-z_T
+        self.dz = self.z-z_T
 
-##        self.distance = np.sqrt(self.dx**2+self.dy**2+self.dz**2)
-        self.distance = np.sqrt(self.dx**2+self.dy**2)
+        self.distance = np.sqrt(self.dx**2+self.dy**2+self.dz**2)
 
-    def set_experimental(self,lagdistance=None,lagdisTol=None,lagdip=None,lagdipTol=None):
+    def set_bins(self,hmin,hmax):
 
-        if lagdistance is None:
-            self.lagdistance = np.where(self.distance==0.,np.inf,self.distance).min()
-        else:
-            self.lagdistance = lagdistance
+        """
+        bins is the array of lag distances 
+        """
 
-        if lagdisTol is None:
-            self.lagdisTol = self.lagdistance/2.
-        else:
-            self.lagdisTol = lagdisTol
+        tol = hmin*1e-6
 
-        if lagdip is not None:
-            self.lagdip = lagdip
+        self.bins = np.arange(hmin,hmax+tol,hmin)
 
-        if lagdipTol is None:
-            self.lagdipTol = self.lagdip/2.+1e-5
-        else:
-            self.lagdipTol = lagdipTol
+        self.lagdistol = hmin/2.
 
-        self.bins = np.arange(self.lagdistance,self.distance.max(),self.lagdistance)
+    def set_experimental(self,lagdip,lagdiptol):
+
+        """
+        - only directional experimental variogram calculation exist for now
+        - calculations were verified for 2D data only
+        """
+
+        while lagdip<0:
+            lagdip += 360
+
+        while lagdip>360:
+            lagdip -= 360
+
+        self.lagdip = lagdip
+        self.lagdiptol = lagdiptol
 
         """
         if we set x direction as east and y direction as north
@@ -70,31 +75,32 @@ class variogram():
         and when dip angle matches azimuth, azmMatch
         for non uniform spacing most modification will be here probably.
         """
+
+        conAzm = np.logical_and(self.azimuth>self.lagdip-self.lagdiptol,
+                                self.azimuth<self.lagdip+self.lagdiptol)
         
-        ##### what is the best way of comparing floating numbers with some tolerance???
-        
-        conDis = np.logical_and(self.distance>self.lagdistance-self.lagdisTol,
-                                self.distance<self.lagdistance+self.lagdisTol)
-        
-        conAzm = np.logical_and(self.azimuth>self.lagdip-self.lagdipTol,
-                                self.azimuth<self.lagdip+self.lagdipTol)
-        
-        disMatch = np.asfortranarray(np.where(conDis)).T
         azmMatch = np.asfortranarray(np.where(conAzm)).T
 
-        """
-        comparing disMatch to azmMatch to find indices matching both
-        """
+        self.experimental = np.zeros_like(self.bins)
 
-        dtype={'names':['f{}'.format(i) for i in range(2)],'formats':2*[disMatch.dtype]}
+        for i,h in enumerate(self.bins):
+            
+            conDis = np.logical_and(self.distance>h-self.lagdistol,self.distance<h+self.lagdistol)
 
-        match = np.intersect1d(disMatch.view(dtype),azmMatch.view(dtype))
-        match = match.view(disMatch.dtype).reshape(-1,2)
+            disMatch = np.asfortranarray(np.where(conDis)).T
 
-        print(match[:,0])
-        print(match[:,1])
+            """
+            comparing disMatch to azmMatch to find indices matching both
+            """
 
-        self.experimental = ((self.f[match[:,0]]-self.f[match[:,1]])**2).sum()/(2*match.shape[0])
+            dtype={'names':['f{}'.format(i) for i in range(2)],'formats':2*[disMatch.dtype]}
+
+            match = np.intersect1d(disMatch.view(dtype),azmMatch.view(dtype))
+            match = match.view(disMatch.dtype).reshape(-1,2)
+
+            semivariance = ((self.f[match[:,0]]-self.f[match[:,1]])**2).sum()/(2*match.shape[0])
+
+            self.experimental[i] = semivariance
 
     def set_theoretical(dist_mat,model):
 
@@ -137,5 +143,6 @@ if __name__ == "__main__":
     data.F = np.array([10,20,24,32,12,17,20,28,9,10,16,12,8,7,12,18])
 
     var = variogram(data)
-    var.set_experimental(lagdistance=20*np.sqrt(2),lagdisTol=2,lagdip=135,lagdipTol=45)
+    var.set_bins(20*np.sqrt(2),20*np.sqrt(2))
+    var.set_experimental(lagdip=135,lagdiptol=2)
     print(var.experimental)
