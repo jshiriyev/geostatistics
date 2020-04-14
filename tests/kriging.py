@@ -9,73 +9,86 @@ import numpy as np
 ##from numpy.testing import assert_array_equal
 ##from numpy.testing import assert_array_almost_equal
 
-from geostatistics.setpy import setup
-from geostatistics.variogram import variogram
+##from geostatistics.setpy import setup
+from geostatistics.kriging import kriging
 
-class data: pass
+class TestKriging(unittest.TestCase):
 
-def variogram00():
+    def test_kriging00(self):
 
-    data.X = np.array([0,0,0,0,10,10,10,10,20,20,20,20,30,30,30,30])
-    data.Y = np.array([0,10,20,30,0,10,20,30,0,10,20,30,0,10,20,30])
-    data.Z = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
+        class observation: pass
+        class estimation: pass
 
-    data.F = np.array([32,24,20,10,28,20,17,12,12,16,10,9,18,12,7,8])
+        observation.X = np.array([600,400,800])
+        observation.Y = np.array([800,700,100])
+        observation.Z = np.array([1,1,1])
+        
+        observation.F = np.array([0.25,0.43,0.56])
 
-    var = variogram(data)
+        observation.type = 'spherical'
+        observation.nugget = 0.0025*0
+        observation.sill = 0.0025
+        observation.range = 700
 
-    var.set_bins(20,20)
-    var.set_experimental(lagdip=90,lagdiptol=2)
-    exp1 = var.experimental
+        estimation.X = 500
+        estimation.Y = 500
+        estimation.Z = 1
 
-    var.set_bins(20*np.sqrt(2),20*np.sqrt(2))
-    var.set_experimental(lagdip=45,lagdiptol=10)
-    exp2 = var.experimental
-    
-    np.testing.assert_equal([exp1,exp2],[44.6875,161.75])
+        estimation.mean = 0.38
+        
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske1 = estimation.F
+        skv1 = estimation.F_variance
 
-def variogram01():
+        observation.range = 300
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske2 = estimation.F
+        skv2 = estimation.F_variance
+        
+        observation.range = 1100
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske3 = estimation.F
+        skv3 = estimation.F_variance
 
-    class data: pass
+        observation.nugget = 0.0025*0.1
+        observation.range = 700
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske4 = estimation.F
+        skv4 = estimation.F_variance
+        
+        observation.nugget = 0.0025*0.5
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske5 = estimation.F
+        skv5 = estimation.F_variance
 
-    sheets = {
-        "num_cols": 3,
-        "dataTypes": "col"
-        }
-    
-    setup('variogram01.csv',sheets,data)
+        observation.nugget = 0.0025*0.9
+        krig = kriging(observation)
+        estimation = krig.simple(estimation)
+        ske6 = estimation.F
+        skv6 = estimation.F_variance
+        
+        np.testing.assert_almost_equal(ske1,0.4092,decimal=4)
+        np.testing.assert_almost_equal(ske2,0.3855,decimal=4)
+        np.testing.assert_almost_equal(ske3,0.4327,decimal=4)
+        np.testing.assert_almost_equal(ske4,0.4024,decimal=4)
+        np.testing.assert_almost_equal(ske5,0.3861,decimal=4)
+        np.testing.assert_almost_equal(ske6,0.3802,decimal=4)
 
-    var = variogram(data)
-
-    var.set_bins(1,4)
-
-    act1 = np.array([6.411,9.490,10.575,10.547])
-    var.set_experimental(lagdip=0,lagdiptol=2)
-    exp1 = var.experimental
-
-    act2 = np.array([4.982,8.750,10.675,12.953])
-    var.set_experimental(lagdip=90,lagdiptol=2)
-    exp2 = var.experimental
-
-    var.set_bins(1*np.sqrt(2),4*np.sqrt(2))
-
-    act3 = np.array([7.459,13.194,19.280,18.406])
-    var.set_experimental(lagdip=45,lagdiptol=2)
-    exp3 = var.experimental
-
-    act4 = np.array([7.806,13.431,10.680,12.625])
-    var.set_experimental(lagdip=-45,lagdiptol=2)
-    exp4 = var.experimental
-    
-    np.testing.assert_array_almost_equal(exp1,act1,decimal=3)
-    np.testing.assert_array_almost_equal(exp2,act2,decimal=3)
-    np.testing.assert_array_almost_equal(exp3,act3,decimal=3)
-    np.testing.assert_array_almost_equal(exp4,act4,decimal=3)
+        np.testing.assert_almost_equal(skv1,0.0017,decimal=4)
+        np.testing.assert_almost_equal(skv2,0.0025,decimal=4)
+        np.testing.assert_almost_equal(skv3,0.0011,decimal=4)
+        np.testing.assert_almost_equal(skv4,0.0019,decimal=4)
+        np.testing.assert_almost_equal(skv5,0.0023,decimal=4)
+        np.testing.assert_almost_equal(skv6,0.0025,decimal=4)
 
 if __name__ == '__main__':
 
-    variogram00()
-    variogram01()
+    unittest.main()
 
 ##import pandas as pd
 ##
@@ -85,7 +98,7 @@ if __name__ == '__main__':
 ##from skgstat import estimators
 ##
 ##
-##class TestVariogramInstatiation(unittest.TestCase):
+##
 ##    def setUp(self):
 ##        # set up default values, whenever c and v are not important
 ##        np.random.seed(42)

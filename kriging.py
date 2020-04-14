@@ -36,6 +36,8 @@ class kriging():
         y_T = np.reshape(self.y,(-1,1))
         z_T = np.reshape(self.z,(-1,1))
 
+        f_T = np.reshape(self.f,(-1,1))
+
         est.distance = np.sqrt((x_T-est.X)**2+(y_T-est.Y)**2+(z_T-est.Z)**2)
 
         est.type = self.type
@@ -43,22 +45,16 @@ class kriging():
         est.sill = self.sill
         est.range = self.range
 
-        """
-        for loop should start here
-        """
-        
         variogram.set_theoretical(est)
         
         est.covariance = est.sill-est.theoretical
-        
-        self.lambdas = np.linalg.solve(self.covariance,est.covariance)
-        
-        self.estimate = est.mean+(self.lambdas.flatten()*(self.f-est.mean)).sum()
-        self.variance = self.sill-(self.lambdas*est.covariance).sum()
 
-        """
-        and for loop should end here
-        """
+        est.lambdas = np.linalg.solve(self.covariance,est.covariance)
+
+        est.F = est.mean+(est.lambdas*(f_T-est.mean)).sum(axis=0)
+        est.F_variance = self.sill-(est.lambdas*est.covariance).sum(axis=0)
+        
+        return est
 
 if __name__ == "__main__":
 
@@ -72,16 +68,16 @@ if __name__ == "__main__":
     observation.F = np.array([0.25,0.43,0.56])
 
     observation.type = 'spherical'
-    observation.nugget = 0.0025*0.9
+    observation.nugget = 0.0025*0
     observation.sill = 0.0025
     observation.range = 700
 
-    estimation.X = 500
-    estimation.Y = 500
-    estimation.Z = 1
+    estimation.X = np.array([500,100])
+    estimation.Y = np.array([500,200])
+    estimation.Z = np.array([1,1])
 
     estimation.mean = 0.38
     
     krig = kriging(observation)
-    krig.simple(estimation)
-    print(krig.estimate)
+    
+    estimation = krig.simple(estimation)
