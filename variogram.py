@@ -119,11 +119,11 @@ class variogram():
             var_mat[Dmat>0] = C0+C*(3/2*hpa[Dmat>0]-1/2*hpa[Dmat>0]**3)
             var_mat[Dmat>a] = C0+C
         elif self.type == 'exponential':
-            var_mat = C0+C*(1-np.exp(-3*hpa))
+            var_mat[Dmat>0] = C0+C*(1-np.exp(-3*hpa[Dmat>0]))
         elif self.type == 'gaussian':
-            var_mat = C0+C*(1-np.exp(-3*hpa**2))
+            var_mat[Dmat>0] = C0+C*(1-np.exp(-3*hpa[Dmat>0]**2))
         elif self.type == 'hole_effect':
-            var_mat = C0+C*(1-np.sin(hpa)/hpa)
+            var_mat[Dmat>0] = C0+C*(1-np.sin(hpa[Dmat>0])/hpa[Dmat>0])
             
         self.theoretical = var_mat
 
