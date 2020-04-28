@@ -1,6 +1,6 @@
 import numpy as np
 
-from geostatistics.variogram import variogram
+from variogram import variogram
 
 """
 This is a PNGE 436 - Reservoir Characterization Class Module including
