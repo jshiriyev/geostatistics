@@ -1,6 +1,8 @@
+import copy
+
 import numpy as np
 
-from kriging import kriging
+from .kriging import kriging
 
 import matplotlib.pyplot as plt
 
@@ -13,50 +15,69 @@ This is a PNGE 436 - Reservoir Characterization Class Module including
 
 class sgs():
 
-    def __init__(self,obs,est):
+    def __init__(self,obs):
+
+        self.X = copy.deepcopy(obs.X)
+        self.Y = copy.deepcopy(obs.Y)
+        self.Z = copy.deepcopy(obs.Z)
         
-        self.obs = obs
-        self.est = est
+        self.F = copy.deepcopy(obs.F)
 
-        self.simulate()
+        self.type = copy.deepcopy(obs.type)
+        self.nugget = copy.deepcopy(obs.nugget)
+        self.sill = copy.deepcopy(obs.sill)
+        self.range = copy.deepcopy(obs.range)
 
-    def update(self,found):
+    def update(self,node):
 
-        self.obs.X = np.append(self.obs.X,found.X)
-        self.obs.Y = np.append(self.obs.Y,found.Y)
-        self.obs.Z = np.append(self.obs.Z,found.Z)
+        self.X = np.append(self.X,node.X)
+        self.Y = np.append(self.Y,node.Y)
+        self.Z = np.append(self.Z,node.Z)
 
-        f_m = found.F
-        f_v = found.F_variance
+        f_m = node.F
+        f_v = node.F_variance
 
         f_r = np.random.normal(f_m,np.sqrt(f_v))
 
-        self.obs.F = np.append(self.obs.F,f_r)
+        self.F = np.append(self.F,f_r)
 
-    def simulate(self):
+    def simulate(self,est):
 
-        class found: pass
+        class node: pass
+        class nodes: pass
 
-        N = self.est.X.size
+        nodes.X = copy.deepcopy(est.X)
+        nodes.Y = copy.deepcopy(est.Y)
+        nodes.Z = copy.deepcopy(est.Z)
+
+        n = self.X.size
+        N = nodes.X.size
 
         while N>0:
 
             randint = np.random.randint(0,N)
 
-            found.X = self.est.X[randint]
-            found.Y = self.est.Y[randint]
-            found.Z = self.est.Z[randint]
+            node.X = nodes.X[randint]
+            node.Y = nodes.Y[randint]
+            node.Z = nodes.Z[randint]
 
-            krig = kriging(self.obs)
-            krig.ordinary(found)
+            krig = kriging(self)
+            krig.ordinary(node)
             
-            self.update(found)
+            self.update(node)
             
-            self.est.X = np.delete(self.est.X,randint)
-            self.est.Y = np.delete(self.est.Y,randint)
-            self.est.Z = np.delete(self.est.Z,randint)
+            nodes.X = np.delete(nodes.X,randint)
+            nodes.Y = np.delete(nodes.Y,randint)
+            nodes.Z = np.delete(nodes.Z,randint)
             
-            N = self.est.X.size
+            N = nodes.X.size
+
+        est.X = self.X[n:]
+        est.Y = self.Y[n:]
+        est.Z = self.Z[n:]
+        est.F = self.F[n:]
+
+        return 
 
 if __name__ == "__main__":
 
@@ -84,11 +105,15 @@ if __name__ == "__main__":
     class est1(estimation): pass
     class est2(estimation): pass
     
-    sgs(obs1,est1)
+    smlt = sgs(obs1)
+    smlt.simulate(est1)
 
     krig = kriging(obs2)
     krig.ordinary(est2)
 
+    obs1.X = np.append(obs1.X,est1.X)
+    obs1.F = np.append(obs1.F,est1.F)
+    
     obs2.X = np.append(obs2.X,est2.X)
     obs2.F = np.append(obs2.F,est2.F)
 

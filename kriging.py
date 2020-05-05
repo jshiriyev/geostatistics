@@ -1,6 +1,8 @@
+import copy
+
 import numpy as np
 
-from variogram import variogram
+from .variogram import variogram
 
 """
 This is a PNGE 436 - Reservoir Characterization Class Module including
@@ -14,16 +16,16 @@ class kriging():
 
     def __init__(self,obs):
 
-        self.x = obs.X
-        self.y = obs.Y
-        self.z = obs.Z
+        self.x = copy.deepcopy(obs.X)
+        self.y = copy.deepcopy(obs.Y)
+        self.z = copy.deepcopy(obs.Z)
         
-        self.f = obs.F
+        self.f = copy.deepcopy(obs.F)
 
-        self.type = obs.type
-        self.nugget = obs.nugget
-        self.sill = obs.sill
-        self.range = obs.range
+        self.type = copy.deepcopy(obs.type)
+        self.nugget = copy.deepcopy(obs.nugget)
+        self.sill = copy.deepcopy(obs.sill)
+        self.range = copy.deepcopy(obs.range)
         
         variogram.set_distance(self)
         variogram.set_theoretical(self)
@@ -138,7 +140,7 @@ if __name__ == "__main__":
     observation.F = np.array([30,50,20])
 
     observation.type = 'exponential'
-    observation.nugget = 0
+    observation.nugget = 100
     observation.sill = 100
     observation.range = 10
 
@@ -148,3 +150,5 @@ if __name__ == "__main__":
     
     krig = kriging(observation)
     krig.ordinary(estimation)
+
+    print(estimation.F)
